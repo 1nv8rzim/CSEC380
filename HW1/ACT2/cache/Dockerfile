@@ -1,5 +1,5 @@
-FROM nginx:1.17
+FROM varnish:6.0
 
-COPY conf /etc/nginx/conf.d
+COPY default.vcl /etc/varnish/
 
-EXPOSE 8000
+EXPOSE 80

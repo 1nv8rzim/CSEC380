@@ -3,9 +3,9 @@
   services:
     webserver:
       build: webserver
-      ports:
-        - 80:80
-    cache: 
+    cache:
       build: cache
       ports: 
-        - 8000:8000
+        - 80:80
+      links:
+        - webserver
