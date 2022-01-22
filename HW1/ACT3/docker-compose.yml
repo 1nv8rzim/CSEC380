@@ -3,4 +3,11 @@
   services:
     webserver:
       build: webserver
-
+    webserver_alt:
+      build: webserver_alt
+    loadbalancer:
+      build: loadbalancer
+    cache:
+      build: cache
+      ports:
+        - 80:80
