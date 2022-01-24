@@ -9,8 +9,8 @@ class Scanner:
         self.args = ArgumentParser()
         self.args.add_argument('start_ip', help="Starting IP of proxy scanner")
         self.args.add_argument('end_ip', help="Ending IP of proxy scanner")
-        self.args.add_argument('-t', '--threads', default=2,
-                               type=int, help="Number of threads to run the Scanner. WARNING: going above 5 threads results in false negatives")
+        self.args.add_argument('-t', '--threads', default=3,
+                               type=int, help="Number of threads to run the Scanner. WARNING: going above 3 threads results in false negatives")
         self.args.add_argument('-p', '--ports', default=False,
                                action='store_true', help='Use uncommon proxy ports too')
         self.args = self.args.parse_args()
@@ -66,6 +66,16 @@ class Scanner:
 
         def run(self):
             while (address := next(self.generator)) is not None:
+                # This is my initial solution, requests no longer force use proxies so when I was running this code using
+                # using a proxy of 0.0.0.0:1, I was getting back status codes of 200. The only thing that I could get
+                # working was the proxy_checker.ProxyChecker() solution (I tried requests.get, requests.sessions.get,
+                # urllib.requests.get(), and other and ran into the same issue). I am assuming that the requests.get
+                # solution was the intended one, but it was not working no matter my attempts at researching and trying to
+                # fix the issues.
+                #
+                # request requests.get("https://csec.rit.edu", proxies={"http": address})
+                # if request.status_code == 200:
+                #     self.proxies.append(address)
                 test = self.checker.check_proxy(address)
                 if test != False:
                     self.proxies.append(address)
