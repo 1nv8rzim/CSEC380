@@ -4,7 +4,7 @@ from ipaddress import IPv4Address
 from threading import Thread
 
 
-class Scanner():
+class Scanner:
     def __init__(self):
         self.args = ArgumentParser()
         self.args.add_argument('start_ip', help="Starting IP of proxy scanner")
@@ -23,9 +23,9 @@ class Scanner():
             yield None
 
     def main(self):
-        gen = self.get_address()
+        generator = self.get_address()
         for _ in range(self.args.threads):
-            self.threads.append(Thread(target=Scanner.run, args=(gen, )))
+            self.threads.append(Thread(target=Scanner.run, args=(generator, )))
             self.threads[-1].start()
         self.threads[-1].join()
 
@@ -33,6 +33,17 @@ class Scanner():
     def run(self, gen):
         while (temp := next(gen)) is not None:
             print(temp)
+
+    class ScannerThread(Thread):
+        def __init__(self, generator):
+            Thread.__init__(self)
+
+            self.generator = generator
+            self.proxies = []
+
+        def run(self):
+            while (address := next(self.generator)) is not None:
+                pass
 
 
 Scanner()
