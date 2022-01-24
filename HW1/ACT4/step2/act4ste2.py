@@ -52,11 +52,6 @@ class Scanner:
         for proxy in proxies:
             print(f'\t[+] {proxy}')
 
-    @classmethod
-    def run(gen):
-        while (temp := next(gen)) is not None:
-            print(temp)
-
     class ScannerThread(Thread):
         def __init__(self, generator):
             Thread.__init__(self)
@@ -66,8 +61,10 @@ class Scanner:
 
         def run(self):
             while (address := next(self.generator)) is not None:
-                # TODO add actual scanning
-                pass
+                request = get("https://csec.rit.edu",
+                              proxies={"http": address})
+                if request.status_code == 200:
+                    self.proxies += address
 
 
 Scanner()
