@@ -41,7 +41,16 @@ class Scanner:
             self.threads[-1].start()
         self.threads[-1].join()
 
-        # TODO add return of proxy addresses
+        proxies = []
+
+        for thread in self.threads:
+            proxies += thread.proxies
+
+        proxies = sorted(proxies)
+
+        print(f'[+] Listing found proxies')
+        for proxy in proxies:
+            print(f'\t[+] {proxy}')
 
     @classmethod
     def run(gen):
