@@ -11,14 +11,26 @@ class Scanner:
         self.args.add_argument('end_ip', help="Ending IP of proxy scanner")
         self.args.add_argument('-t', '--threads', default=10,
                                type=int, help="Number of threads to run the Scanner")
+        self.args.add_argument('-a', '--all-ports', default=False,
+                               action='store_true', help='Use uncommon proxy ports too')
         self.args = self.args.parse_args()
 
         self.threads = []
+        self.common_ports = (80, 443, 808, 1080, 3128, 8080, 8118)
+        self.uncommon_ports = (81, 82, 83, 84, 85, 86, 88, 1337, 3124, 3127, 3129, 6515, 6588,
+                               6666, 6675, 8000, 8001, 8008, 8081, 8082, 8085, 8088, 8090, 8123, 8800, 8888, 8909, 9000, 9415, 36081, 54321, 60099)
         self.main()
 
     def get_address(self):
+        print("[+] Checking common proxy ports")
         for address in range(int(IPv4Address(self.args.start_ip)), int(IPv4Address(self.args.end_ip))):
-            yield str(IPv4Address(address))
+            for port in self.common_ports:
+                yield str(IPv4Address(address))
+        if self.args.a:
+            print('[+] Checking uncommon ports')
+            for address in range(int(IPv4Address(self.args.start_ip)), int(IPv4Address(self.args.end_ip))):
+                for port in self.uncommon_ports:
+                    yield str(IPv4Address(address))
         for _ in range(self.args.threads):
             yield None
 
@@ -30,7 +42,7 @@ class Scanner:
         self.threads[-1].join()
 
     @classmethod
-    def run(self, gen):
+    def run(gen):
         while (temp := next(gen)) is not None:
             print(temp)
 
