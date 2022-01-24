@@ -25,21 +25,23 @@ class Scanner:
         print("[+] Checking common proxy ports")
         for address in range(int(IPv4Address(self.args.start_ip)), int(IPv4Address(self.args.end_ip))):
             for port in self.common_ports:
-                yield str(IPv4Address(address))
+                yield str(IPv4Address(address)) + f':{port}'
         if self.args.a:
             print('[+] Checking uncommon ports')
             for address in range(int(IPv4Address(self.args.start_ip)), int(IPv4Address(self.args.end_ip))):
                 for port in self.uncommon_ports:
-                    yield str(IPv4Address(address))
+                    yield str(IPv4Address(address)) + f':{port}'
         for _ in range(self.args.threads):
             yield None
 
     def main(self):
         generator = self.get_address()
         for _ in range(self.args.threads):
-            self.threads.append(Thread(target=Scanner.run, args=(generator, )))
+            self.threads.append(self.ScannerThread(generator))
             self.threads[-1].start()
         self.threads[-1].join()
+
+        # TODO add return of proxy addresses
 
     @classmethod
     def run(gen):
@@ -55,6 +57,7 @@ class Scanner:
 
         def run(self):
             while (address := next(self.generator)) is not None:
+                # TODO add actual scanning
                 pass
 
 
