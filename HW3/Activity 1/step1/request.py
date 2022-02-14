@@ -1,11 +1,13 @@
 import socket
 from urllib.parse import quote
 import ssl
-import bs4
+
+AGENT = "Mozilla/5.0 (X11; Linux x86_64; rv:97.0) Gecko/20100101 Firefox/97.0"
+CONTENT = "application/x-www-form-urlencoded"
 
 
 class Request:
-    def __init__(self, host, uri='/', port=80, https=False, request_type="GET", agent="Mozilla/5.0 (X11; Linux x86_64; rv:97.0) Gecko/20100101 Firefox/97.0", content_type="application/x-www-form-urlencoded", **parameters):
+    def __init__(self, host, uri='/', port=80, https=False, request_type="POST", agent=AGENT, content_type=CONTENT, parameters={}):
         self.host = host
         self.uri = uri
         self.port = port
@@ -36,7 +38,7 @@ class Request:
             self.uri = '/' + uri
             self.redirects += 1
             print(f'[+] Redirect to {self.parsed_headers["Location"]}')
-            if self.redirects < 10:
+            if self.redirects < 16:
                 self.main()
 
     def receive_response(self):
@@ -65,11 +67,11 @@ class Request:
 
     def generate_socket(self):
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        self.sock.settimeout(1)
         if self.https:
             self.context = ssl.create_default_context()
             self.sock = self.context.wrap_socket(
                 self.sock, server_hostname=self.host)
+        self.sock.settimeout(2)
         self.sock.connect((self.host, self.port))
 
     def generate_request(self):
@@ -78,24 +80,21 @@ class Request:
                 value)) for key, value in self.parameters.items())
 
         self.request = f'{self.request_type} {self.uri} HTTP/1.1\r\n'
-        self.request += f'Host: {self.host}:{self.port}\r\n'
+        self.request += f'Host: {self.host}\r\n'
         self.request += f'User-agent: {self.agent}\r\n'
-        self.request += f'Connection: keep-alive\r\n'
         self.request += f'Accept: text/html\r\n'
-        self.request += f'Accept-Language: en-US,en;q=0.9\r\n'
-        self.request += f'Content-Length: {len(self.parameters)}\r\n'
+        self.request += f'Accept-Language: en-US\r\n'
+        self.request += f'Accept-Encoding: text/html'
+        self.request += f'Connection: keep-alive'
         self.request += f'Content-Type: {self.content_type}\r\n'
+        self.request += f'Content-Length: {len(self.parameters)}\r\n'
         self.request += f'\r\n'
         self.request += f'{self.parameters}'
 
 
-request = Request(
-    'area1.security', port=443, https=True)
+if __name__ == '__main__':
+    request = Request(
+        'www.rit.edu', '/study/computing-security-bs', port=443, https=True)
 
-print(request.request)
-print()
-print(request.text)
-print()
-print(request.headers)
-print()
-print(request.parsed_headers)
+    with open('test.html', 'w') as f:
+        f.write(request.text)
