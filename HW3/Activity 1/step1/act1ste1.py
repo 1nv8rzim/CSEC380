@@ -9,7 +9,7 @@ good_soup = BeautifulSoup(request.text, 'html.parser')
 classes = {}
 
 for tr in good_soup.find_all('tr', {"class": "hidden-row"}):
-    class_code, class_name = (temp := tr.find_all('td')[0:2])
+    class_code, class_name = tr.find_all('td')[0:2]
     if not match('[A-Z]{4}-[0-9]{2,3}', class_code.text.strip()):
         continue
     classes[class_code.text.strip()] = class_name.find(
