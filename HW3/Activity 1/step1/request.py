@@ -85,7 +85,7 @@ class Request:
         self.request += f'Accept: text/html\r\n'
         self.request += f'Accept-Language: en-US\r\n'
         self.request += f'Accept-Encoding: text/html'
-        self.request += f'Connection: keep-alive'
+        self.request += f'Connection: close'
         self.request += f'Content-Type: {self.content_type}\r\n'
         self.request += f'Content-Length: {len(self.parameters)}\r\n'
         self.request += f'\r\n'
