@@ -134,7 +134,7 @@ class ImageDownload:
         def main(self):
             self.get_raw_image()
             print(self.request.parsed_headers['type'])
-            if self.request.parsed_headers['type'] != '400':
+            if self.request.parsed_headers['type'] not in ('400', '302', '301'):
                 self.write_file()
 
         def get_raw_image(self):
