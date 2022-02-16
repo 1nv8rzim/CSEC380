@@ -3,16 +3,25 @@ import socket
 from urllib.parse import quote
 import ssl
 from threading import Thread
+from queue import Queue
+from bs4 import BeautifulSoup
 
 AGENT = "Mozilla/5.0 (X11; Linux x86_64; rv:97.0) Gecko/20100101 Firefox/97.0"
 CONTENT = "application/x-www-form-urlencoded"
 
 
 class Request:
-    def __init__(self, url, port=80, https=False, request_type="POST", agent=AGENT, content_type=CONTENT, parameters={}, decode=True):
+    def __init__(self, url, port=None, https=False, request_type="POST", agent=AGENT, content_type=CONTENT, parameters={}, decode=True):
         self.host, self.uri = url.split('/', 1)
         self.uri = f'/{self.uri}'
-        self.port = port
+
+        if port is not None:
+            self.port = port
+        elif https:
+            self.port = 443
+        else:
+            self.port = 80
+
         self.agent = agent
         self.request_type = request_type
         self.content_type = content_type
@@ -80,7 +89,7 @@ class Request:
             self.context = ssl.create_default_context()
             self.sock = self.context.wrap_socket(
                 self.sock, server_hostname=self.host)
-        self.sock.settimeout(5)
+        self.sock.settimeout(3)
         self.sock.connect((self.host, self.port))
 
     def generate_request(self):
@@ -147,3 +156,31 @@ class ImageDownload:
             name = self.url.split('&UN=')[1].split('&HASH')[0]
             with open(f'{self.folder}/{name}.jpg', 'wb') as image:
                 image.write(self.request.text)
+
+
+class WebCrawlerThread(Thread):
+    def __init__(self, domain, urls, port=None, https=False):
+        Thread.__init__(self)
+        self.domain = domain
+        self.urls = urls
+        self.port = port
+        self.https = https
+
+    def get_addresses(self, request):
+        links = []
+        good_soup = BeautifulSoup(request)
+        for a in good_soup.find_all('a'):
+            links.append(a.get('href'))
+        for link in links:
+            print(link)
+
+    def main(self):
+        while not self.urls.empty():
+            url = self.urls.get()
+            request = Request(url, https=self.https, port=self.port)
+            self.get_addresses(request.text)
+
+
+queue = Queue()
+queue.put("www.rit.edu")
+WebCrawlerThread("rit.edu", queue, https=True)
