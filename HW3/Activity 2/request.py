@@ -1,18 +1,23 @@
-from curses import raw
 import socket
 from urllib.parse import quote
 import ssl
 from threading import Thread
 from queue import Queue
 from bs4 import BeautifulSoup
+from re import match
 
 AGENT = "Mozilla/5.0 (X11; Linux x86_64; rv:97.0) Gecko/20100101 Firefox/97.0"
 CONTENT = "application/x-www-form-urlencoded"
+URL_RE = '(?:www\.|(?!www)[a-zA-Z0-9][a-zA-Z0-9-]+[a-zA-Z0-9]\.[^\s]{2,}|www\.[a-zA-Z0-9][a-zA-Z0-9-]+[a-zA-Z0-9]\.[^\s]{2,}|https?:\/\/(?:www\.|(?!www))[a-zA-Z0-9]+\.[^\s]{2,}|www\.[a-zA-Z0-9]+\.[^\s]{2,})'
 
 
 class Request:
     def __init__(self, url, port=None, https=False, request_type="POST", agent=AGENT, content_type=CONTENT, parameters={}, decode=True):
-        self.host, self.uri = url.split('/', 1)
+        try:
+            self.host, self.uri = url.split('/', 1)
+        except:
+            self.host = url
+            self.uri = ''
         self.uri = f'/{self.uri}'
 
         if port is not None:
@@ -29,6 +34,7 @@ class Request:
         self.https = https
         self.decode = decode
 
+        self.failures = 0
         self.redirects = 0
 
         self.main()
@@ -37,9 +43,12 @@ class Request:
         self.generate_request()
         self.generate_socket()
         self.send_request()
-        self.receive_response()
-        self.parse_headers()
-        self.redirect()
+        try:
+            self.receive_response()
+            self.parse_headers()
+            self.redirect()
+        except:
+            pass
 
     def redirect(self):
         if self.parsed_headers['type'] in ('301', '302'):
@@ -51,27 +60,32 @@ class Request:
                 self.host, uri = location.split('/', 1)
                 self.uri = '/' + uri
             self.redirects += 1
-            print(f'[+] Redirect to {self.host}{self.uri}')
             if self.redirects < 16:
                 self.main()
 
     def receive_response(self):
         data = b''
-        response_part = self.sock.recv(4096)
-        while response_part != b'':
-            data += response_part
-            try:
-                response_part = self.sock.recv(4096)
-            except:
-                break
-        self.raw = data
-        if self.decode:
-            self.response = data.decode()
-            self.headers, self.text = data.decode().split('\r\n\r\n', 1)
-            self.text = self.text[:-1]
-        else:
-            self.headers, self.text = data.split(b'\r\n\r\n', 1)
-            self.headers = self.headers.decode()
+        ignore = False
+        try:
+            response_part = self.sock.recv(4096)
+        except:
+            ignore = True
+            self.receive_response()
+        if not ignore:
+            while response_part != b'':
+                data += response_part
+                try:
+                    response_part = self.sock.recv(4096)
+                except:
+                    break
+            self.raw = data
+            if self.decode:
+                self.response = data.decode()
+                self.headers, self.text = data.decode().split('\r\n\r\n', 1)
+                self.text = self.text[:-1]
+            else:
+                self.headers, self.text = data.split(b'\r\n\r\n', 1)
+                self.headers = self.headers.decode()
 
     def parse_headers(self):
         headers = self.headers.split('\r\n')
@@ -90,7 +104,13 @@ class Request:
             self.sock = self.context.wrap_socket(
                 self.sock, server_hostname=self.host)
         self.sock.settimeout(3)
-        self.sock.connect((self.host, self.port))
+        try:
+            self.sock.connect((self.host, self.port))
+        except:
+            print('[-] Failure: restarting binding')
+            self.failures += 1
+            if self.failures > 5:
+                self.generate_socket()
 
     def generate_request(self):
         if self.content_type == 'application/x-www-form-urlencoded' and type(self.parameters) == type(dict()):
@@ -158,29 +178,110 @@ class ImageDownload:
                 image.write(self.request.text)
 
 
-class WebCrawlerThread(Thread):
-    def __init__(self, domain, urls, port=None, https=False):
-        Thread.__init__(self)
+class WebCrawler:
+    def __init__(self, domain, port=None, https=False, depth=1, threads=10, path='./'):
         self.domain = domain
-        self.urls = urls
         self.port = port
         self.https = https
+        self.depth = depth
+        self.threads = threads
+        self.path = path
 
-    def get_addresses(self, request):
-        links = []
-        good_soup = BeautifulSoup(request)
-        for a in good_soup.find_all('a'):
-            links.append(a.get('href'))
-        for link in links:
-            print(link)
+        self.main()
 
     def main(self):
-        while not self.urls.empty():
-            url = self.urls.get()
-            request = Request(url, https=self.https, port=self.port)
-            self.get_addresses(request.text)
+        queue = Queue()
+        queue.put((self.domain, 0))
+        all_urls = set()
+        all_urls.add(self.domain)
+        emails = set()
+
+        threads = []
+
+        thread = self.WebCrawlerThread(self.domain, queue, all_urls, emails,
+                                       https=True, init=True, depth=self.depth)
+        thread.start()
+        thread.join()
+
+        for _ in range(self.threads):
+            threads.append(self.WebCrawlerThread(
+                self.domain, queue, all_urls, emails, https=True, depth=self.depth))
+            threads[-1].start()
+
+        for thread in threads:
+            if thread.is_alive():
+                thread.join()
+
+        print(emails)
+        print(len(emails))
+
+    class WebCrawlerThread(Thread):
+        def __init__(self, domain, urls, all_urls, emails, port=None, https=False, depth=1, init=False):
+            Thread.__init__(self)
+            self.domain = domain
+            self.urls = urls
+            self.port = port
+            self.https = https
+            self.all_urls = all_urls
+            self.depth = depth
+            self.init = init
+            self.emails = emails
+
+        def get_addresses(self, request, depth):
+            hrefs = []
+            good_soup = BeautifulSoup(request, 'html.parser')
+
+            for a in good_soup.find_all('a'):
+                hrefs.append(a.get('href'))
+
+            links = []
+
+            for href in hrefs:
+                if href is None:
+                    continue
+                elif href.startswith('#'):
+                    continue
+                href = href.split('#')[0]
+                if href.startswith('/'):
+                    links.append(self.domain + href[1:])
+                    continue
+                elif href.startswith('https://'):
+                    links.append(href[8:])
+                    continue
+                elif href.startswith('http://'):
+                    links.append(href[7:])
+                    continue
+                elif match(URL_RE, href):
+                    links.append(href)
+                elif '@' in href:
+                    if '?' in href:
+                        href = href.split('?')[0]
+                    self.emails.add(href)
+
+            if self.depth <= depth + 1:
+                for link in links:
+                    self.all_urls.add(link)
+            else:
+                for link in links:
+                    if link in self.all_urls:
+                        continue
+                    elif link.split('/')[0].endswith(self.domain[:-1]):
+                        self.all_urls.add(link)
+                        self.urls.put((link, depth + 1))
+                    else:
+                        self.all_urls.add(link)
+
+        def run(self):
+            while not self.urls.empty():
+                url, depth = self.urls.get()
+                print(f'[+] Scraping {url}, depth={depth}')
+                request = Request(url, https=self.https, port=self.port)
+                try:
+                    self.get_addresses(request.text, depth)
+                    if self.init:
+                        break
+                except:
+                    pass
 
 
-queue = Queue()
-queue.put("www.rit.edu")
-WebCrawlerThread("rit.edu", queue, https=True)
+crawler = WebCrawler('rit.edu/', https=True, depth=2, threads=20)

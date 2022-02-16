@@ -1,4 +1,3 @@
-from curses import raw
 import socket
 from urllib.parse import quote
 import ssl
