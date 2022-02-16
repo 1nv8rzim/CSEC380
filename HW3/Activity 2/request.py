@@ -5,6 +5,7 @@ from threading import Thread
 from queue import Queue
 from bs4 import BeautifulSoup
 from re import match
+from multiprocessing import Process
 
 AGENT = "Mozilla/5.0 (X11; Linux x86_64; rv:97.0) Gecko/20100101 Firefox/97.0"
 CONTENT = "application/x-www-form-urlencoded"
@@ -43,12 +44,9 @@ class Request:
         self.generate_request()
         self.generate_socket()
         self.send_request()
-        try:
-            self.receive_response()
-            self.parse_headers()
-            self.redirect()
-        except:
-            pass
+        self.receive_response()
+        self.parse_headers()
+        self.redirect()
 
     def redirect(self):
         if self.parsed_headers['type'] in ('301', '302'):
@@ -66,26 +64,21 @@ class Request:
     def receive_response(self):
         data = b''
         ignore = False
-        try:
-            response_part = self.sock.recv(4096)
-        except:
-            ignore = True
-            self.receive_response()
-        if not ignore:
-            while response_part != b'':
-                data += response_part
-                try:
-                    response_part = self.sock.recv(4096)
-                except:
-                    break
-            self.raw = data
-            if self.decode:
-                self.response = data.decode()
-                self.headers, self.text = data.decode().split('\r\n\r\n', 1)
-                self.text = self.text[:-1]
-            else:
-                self.headers, self.text = data.split(b'\r\n\r\n', 1)
-                self.headers = self.headers.decode()
+        response_part = self.sock.recv(4096)
+        while response_part != b'':
+            data += response_part
+            try:
+                response_part = self.sock.recv(4096)
+            except:
+                break
+        self.raw = data
+        if self.decode:
+            self.response = data.decode()
+            self.headers, self.text = data.decode().split('\r\n\r\n', 1)
+            self.text = self.text[:-1]
+        else:
+            self.headers, self.text = data.split(b'\r\n\r\n', 1)
+            self.headers = self.headers.decode()
 
     def parse_headers(self):
         headers = self.headers.split('\r\n')
@@ -103,7 +96,7 @@ class Request:
             self.context = ssl.create_default_context()
             self.sock = self.context.wrap_socket(
                 self.sock, server_hostname=self.host)
-        self.sock.settimeout(3)
+        self.sock.settimeout(2)
         try:
             self.sock.connect((self.host, self.port))
         except:
@@ -179,41 +172,53 @@ class ImageDownload:
 
 
 class WebCrawler:
-    def __init__(self, domain, port=None, https=False, depth=1, threads=10, path='./'):
+    def __init__(self, domain, port=None, https=False, depth=1, threads=10, processes=2, path=''):
         self.domain = domain
         self.port = port
         self.https = https
         self.depth = depth
         self.threads = threads
         self.path = path
+        self.processes = processes
 
         self.main()
 
     def main(self):
-        queue = Queue()
-        queue.put((self.domain, 0))
-        all_urls = set()
-        all_urls.add(self.domain)
-        emails = set()
+        self.queue = Queue()
+        self.queue.put((self.domain, 0))
+        self.all_urls = set()
+        self.all_urls.add(self.domain)
+        self.emails = set()
 
-        threads = []
-
-        thread = self.WebCrawlerThread(self.domain, queue, all_urls, emails,
+        thread = self.WebCrawlerThread(self.domain, self.queue, self.all_urls, self.emails,
                                        https=True, init=True, depth=self.depth)
         thread.start()
         thread.join()
 
+        processes = []
+
+        for _ in range(self.processes):
+            processes.append(Process(target=self.start_threads()))
+            processes[-1].start()
+
+        for process in processes:
+            if process.is_alive():
+                process.join()
+
+        with open(self.path + f'emails_d{self.depth}.txt', 'w') as f:
+            for email in self.emails:
+                f.write(email + '\n')
+
+    def start_threads(self):
+        threads = []
         for _ in range(self.threads):
             threads.append(self.WebCrawlerThread(
-                self.domain, queue, all_urls, emails, https=True, depth=self.depth))
+                self.domain, self.queue, self.all_urls, self.emails, https=True, depth=self.depth))
             threads[-1].start()
 
         for thread in threads:
             if thread.is_alive():
                 thread.join()
-
-        print(emails)
-        print(len(emails))
 
     class WebCrawlerThread(Thread):
         def __init__(self, domain, urls, all_urls, emails, port=None, https=False, depth=1, init=False):
@@ -256,6 +261,9 @@ class WebCrawler:
                 elif '@' in href:
                     if '?' in href:
                         href = href.split('?')[0]
+                    if '\r\n' in href:
+                        href = href.split('\r\n')
+                        href = href[0] + href[-1]
                     self.emails.add(href)
 
             if self.depth <= depth + 1:
@@ -274,14 +282,21 @@ class WebCrawler:
         def run(self):
             while not self.urls.empty():
                 url, depth = self.urls.get()
-                print(f'[+] Scraping {url}, depth={depth}')
-                request = Request(url, https=self.https, port=self.port)
+                left = self.urls.qsize()
+                if url.endswith('.pdf'):
+                    continue
+                if '\r\n' in url:
+                    temp = url.split('\r\n')
+                    if len(temp) > 1:
+                        url = temp[0] + temp[-1]
+                    else:
+                        url = temp[0]
+                print(
+                    f'[+] Scraping https://{url}, depth={depth}, queued={left}')
                 try:
+                    request = Request(url, https=self.https, port=self.port)
                     self.get_addresses(request.text, depth)
                     if self.init:
                         break
                 except:
                     pass
-
-
-crawler = WebCrawler('rit.edu/', https=True, depth=2, threads=20)
