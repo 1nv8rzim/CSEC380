@@ -30,18 +30,19 @@ class Request:
         self.send_request()
         self.receive_response()
         self.parse_headers()
-        if self.decode:
-            self.redirect()
+        self.redirect()
 
     def redirect(self):
         if self.parsed_headers['type'] in ('301', '302'):
             location = self.parsed_headers['Location']
-            location = location.split('//')[1]
-            host, uri = location.split('/', 1)
-            self.host = host
-            self.uri = '/' + uri
+            if not location.startswith('http'):
+                self.uri = '/' + location
+            else:
+                location = location.split('//')[1]
+                self.host, uri = location.split('/', 1)
+                self.uri = '/' + uri
             self.redirects += 1
-            print(f'[+] Redirect to {self.parsed_headers["Location"]}')
+            print(f'[+] Redirect to {self.host}{self.uri}')
             if self.redirects < 16:
                 self.main()
 
@@ -133,8 +134,7 @@ class ImageDownload:
 
         def main(self):
             self.get_raw_image()
-            print(self.request.parsed_headers['type'])
-            if self.request.parsed_headers['type'] not in ('400', '302', '301'):
+            if self.request.parsed_headers['type'] not in ('400'):
                 self.write_file()
 
         def get_raw_image(self):
