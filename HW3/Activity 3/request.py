@@ -63,7 +63,6 @@ class Request:
 
     def receive_response(self):
         data = b''
-        ignore = False
         response_part = self.sock.recv(4096)
         while response_part != b'':
             data += response_part
@@ -283,6 +282,7 @@ class WebCrawler:
                     f'[+] Scraping {request_type}://{url}, depth={depth}, queued={left}')
                 try:
                     request = Request(url, https=self.https, port=self.port)
+                    print(request.headers)
                     self.get_addresses(request.text, depth)
                     if self.init:
                         break
