@@ -13,7 +13,7 @@ URL_RE = '(?:www\.|(?!www)[a-zA-Z0-9][a-zA-Z0-9-]+[a-zA-Z0-9]\.[^\s]{2,}|www\.[a
 
 
 class Request:
-    def __init__(self, url, port=None, https=False, request_type="POST", agent=AGENT, content_type=CONTENT, parameters={}, decode=True):
+    def __init__(self, url, port=None, https=False, request_type="GET", agent=AGENT, content_type=CONTENT, parameters={}, decode=True, cookies={}):
         try:
             self.host, self.uri = url.split('/', 1)
         except:
@@ -34,6 +34,7 @@ class Request:
         self.parameters = parameters
         self.https = https
         self.decode = decode
+        self.cookies = cookies
 
         self.failures = 0
         self.redirects = 0
@@ -84,7 +85,14 @@ class Request:
         self.parsed_headers = {"type": headers[0].split()[1]}
         for header in headers[1:]:
             key, value = header.split(": ", 1)
-            self.parsed_headers[key] = value
+            if key in self.parsed_headers:
+                if type(self.parsed_headers[key]) == list:
+                    self.parsed_headers[key].append(value)
+                else:
+                    self.parsed_headers[key] = [
+                        self.parsed_headers[key], value]
+            else:
+                self.parsed_headers[key] = value
 
     def send_request(self):
         self.sock.sendall(self.request.encode())
@@ -118,6 +126,8 @@ class Request:
         self.request += f'Connection: close'
         self.request += f'Content-Type: {self.content_type}\r\n'
         self.request += f'Content-Length: {len(self.parameters)}\r\n'
+        for cookie in self.cookies:
+            self.request += f'Cookie: {cookie}\r\n'
         self.request += f'\r\n'
         self.request += f'{self.parameters}'
 
@@ -193,6 +203,19 @@ class WebCrawler:
         thread.start()
         thread.join()
 
+        self.cookies = []
+
+        try:
+            if thread.request.parsed_headers['type'] in ('400', '403', '404'):
+                for cookie in thread.request.parsed_headers['Set-Cookie']:
+                    self.cookies.append(cookie.split(';')[0])
+                thread = self.WebCrawlerThread(self.domain, self.queue, self.all_urls,
+                                               https=self.https, init=True, depth=self.depth, cookies=self.cookies)
+                thread.start()
+                thread.join()
+        except:
+            pass
+
         processes = []
 
         for _ in range(self.processes):
@@ -207,7 +230,7 @@ class WebCrawler:
         threads = []
         for _ in range(self.threads):
             threads.append(self.WebCrawlerThread(
-                self.domain, self.queue, self.all_urls, https=self.https, depth=self.depth))
+                self.domain, self.queue, self.all_urls, https=self.https, depth=self.depth, cookies=self.cookies))
             threads[-1].start()
 
         for thread in threads:
@@ -215,7 +238,7 @@ class WebCrawler:
                 thread.join()
 
     class WebCrawlerThread(Thread):
-        def __init__(self, domain, urls, all_urls, port=None, https=False, depth=1, init=False):
+        def __init__(self, domain, urls, all_urls, port=None, https=False, depth=1, init=False, cookies=[]):
             Thread.__init__(self)
             self.domain = domain
             self.urls = urls
@@ -224,6 +247,7 @@ class WebCrawler:
             self.all_urls = all_urls
             self.depth = depth
             self.init = init
+            self.cookies = cookies
 
         def get_addresses(self, request, depth):
             hrefs = []
@@ -281,9 +305,9 @@ class WebCrawler:
                 print(
                     f'[+] Scraping {request_type}://{url}, depth={depth}, queued={left}')
                 try:
-                    request = Request(url, https=self.https, port=self.port)
-                    print(request.headers)
-                    self.get_addresses(request.text, depth)
+                    self.request = Request(
+                        url, https=self.https, port=self.port, cookies=self.cookies)
+                    self.get_addresses(self.request.text, depth)
                     if self.init:
                         break
                 except:
