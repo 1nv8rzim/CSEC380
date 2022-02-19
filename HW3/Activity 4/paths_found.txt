@@ -1,0 +1,9 @@
+articles/index.html
+images/
+index.html
+business/
+2004/
+images/index.html
+articles/
+2004/index.html
+business/index.html
