@@ -1,0 +1,11 @@
+FROM python:3.8-slim-buster
+
+WORKDIR /app
+
+COPY requirements.txt requirements.txt
+COPY request.py request.py
+COPY act1ste1.py act1ste1.py
+
+RUN pip3 install -r requirements.txt
+
+CMD python3 act1ste1.py

@@ -17,4 +17,4 @@ for img in good_soup.find_all('img', {"class": "card-img-top"}):
     images.append(img[8:])
 
 ImageDownload(
-    images, folder='/home/max/Repositories/CSEC380/HW3/Activity 1/step2/images')
+    images, folder='images')

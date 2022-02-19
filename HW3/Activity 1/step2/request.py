@@ -79,7 +79,7 @@ class Request:
             self.context = ssl.create_default_context()
             self.sock = self.context.wrap_socket(
                 self.sock, server_hostname=self.host)
-        self.sock.settimeout(5)
+        self.sock.settimeout(10)
         self.sock.connect((self.host, self.port))
 
     def generate_request(self):
