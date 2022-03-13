@@ -18,6 +18,7 @@ if($stmt = $mysqli->prepare("SELECT password, user_id from users where email=?")
 				session_destroy();
 				$sess_id = session_start();
 				session_regenerate_id(true);
+				$_SESSION['token'] = md5(uniqid(mt_rand(), true));
 				$_SESSION['login'] = ['born' => time(),'ip' => $_SERVER['REMOTE_ADDR'],'valid' => true];
 				$_SESSION['user_id'] = $row['user_id'];
 				die("True - login successful");

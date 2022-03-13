@@ -1,10 +1,10 @@
 <?php
 
-$dbhost = 'localhost';
+$dbhost = 'database';
 $dbuser = 'root';
 $dbpass = '';
 $dbname = 'armbook';
-$mysqli = new mysqli('127.0.0.1', $dbuser, $dbpass, $dbname);
+$mysqli = new mysqli($dbhost, $dbuser, $dbpass, $dbname);
 if ($mysqli->connect_errno) {
     echo "Error: Failed to make a MySQL connection, here is why: \n";
     echo "Errno: " . $mysqli->connect_errno . "\n";
@@ -13,5 +13,4 @@ if ($mysqli->connect_errno) {
 }
 # Disables showing warnings, if you want these enable them -- however it may mess with the app in the end if using later php (PHP7)
 error_reporting(0);
-
 ?>

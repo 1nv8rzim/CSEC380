@@ -22,7 +22,11 @@ if($has_session){
 		session_destroy();
 	}
 	// Reset our counter
-	$_SESSION['login']['born'] = time();	
+	$_SESSION['login']['born'] = time();
+	
+	if($_SESSION["token"] !== $_GET["token"]){
+		die("Invalid token");
+	}
 
 	// Get Profile data
 	if($stmt = $mysqli->prepare("SELECT * from profiles where user_id=?")){
@@ -59,12 +63,20 @@ if($has_session){
 		die("There was an issue contact your administrator");
 	}
 	$friends = explode(',',$friends);
-	// If it's already in the array
-	if(array_search($id_to_get,$friends)){
+	// If we can't find the element in our friends array
+	if(!array_search($id_to_get,$friends)){
 		die("There was an issue contact your administrator");
-	}	
-	array_push($friends,$id_to_get);
-	$ids = implode(',',$friends);
+	}
+	// Iterate over the array looking for the value
+	$new_friends = array();
+	foreach ($friends as &$value) {
+		// If its not the one we're deleting push it
+		if($value != $id_to_get){
+			array_push($new_friends, $value);
+		}
+	}
+
+	$ids = implode(',',$new_friends);
 	if($stmt = $mysqli->prepare("UPDATE profiles SET Friends=? WHERE user_id=?")){
 		if($stmt->bind_param("si", $ids, $_SESSION['user_id'])){
 			if(!$stmt->execute()){
@@ -74,7 +86,7 @@ if($has_session){
 			die("Error - Issue binding prepared statement: " . mysqli_error($mysqli));
 		}
 		if($stmt->close()){
-			echo "True - Friend Added Successfully";
+			echo "True - Friend Removed Successfully";
 		}else{
 			die("Error - Failed to close prepared statement" . mysqli_error($mysqli));
 		}

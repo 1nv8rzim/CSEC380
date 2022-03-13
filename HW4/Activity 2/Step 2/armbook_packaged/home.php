@@ -157,13 +157,13 @@ if($has_session){
 			});
 		});
 		$( "#add_friend" ).click(function() {
-			$.get( "add_friend.php?id=<?php echo $id_to_get; ?>", function( data ) {
+			$.get( "add_friend.php?id=<?php echo $id_to_get; ?>&token=<?php echo $_SESSION['token']; ?>", function( data ) {
 			  event.preventDefault();
 			});
 			location.reload();
 		});
 		$( "#del_friend" ).click(function() {
-			$.get( "del_friend.php?id=<?php echo $id_to_get; ?>", function( data ) {	
+			$.get( "del_friend.php?id=<?php echo $id_to_get; ?>&token=<?php echo $_SESSION['token']; ?>", function( data ) {	
 			  event.preventDefault();
 			});
 			location.reload();
