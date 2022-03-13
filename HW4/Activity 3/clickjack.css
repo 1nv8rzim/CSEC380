@@ -1,0 +1,9 @@
+.clickjack {
+    width: 950px;
+    height: 280px;
+    position: absolute;
+    top: -127px;
+    left: -857px;
+    opacity: 0.0001;
+    z-index: 1;
+}
