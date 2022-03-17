@@ -1,0 +1,12 @@
+---
+version: '3'
+services:
+  php: 
+    build: .
+    ports:
+      - 80:80
+  database:
+    build: database
+    environment:
+      - "MYSQL_ALLOW_EMPTY_PASSWORD=yes"
+      - "MYSQL_DATABASE=armbook"
