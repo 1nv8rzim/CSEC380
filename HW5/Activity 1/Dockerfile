@@ -1,10 +1,15 @@
-FROM php:apache
+FROM  php:8-apache
 
-COPY ./armbook_packaged /var/www/html/
-RUN docker-php-ext-install mysqli
-RUN a2enmod ssl
-COPY ./apache-selfsigned.key /etc/ssl/private/apache-selfsigned.key
-COPY ./apache-selfsigned.crt /etc/ssl/certs/apache-selfsigned.crt
-RUN echo PFZpcnR1YWxIb3N0ICo6NDQzPgogICBEb2N1bWVudFJvb3QgL3Zhci93d3cvaHRtbAoKICAgU1NMRW5naW5lIG9uCiAgIFNTTENlcnRpZmljYXRlRmlsZSAvZXRjL3NzbC9jZXJ0cy9hcGFjaGUtc2VsZnNpZ25lZC5jcnQKICAgU1NMQ2VydGlmaWNhdGVLZXlGaWxlIC9ldGMvc3NsL3ByaXZhdGUvYXBhY2hlLXNlbGZzaWduZWQua2V5CjwvVmlydHVhbEhvc3Q+ | base64 -d >> /etc/apache2/sites-enabled/000-default.conf
+RUN mkdir -p /etc/apache2/ssl
+RUN a2enmod ssl && a2enmod rewrite && a2enmod http2 && a2enmod headers 
+RUN docker-php-ext-install mysqli && docker-php-ext-enable mysqli
+
+COPY armbook_packaged/ /var/www/html/
+COPY 000-default.conf /etc/apache2/sites-enabled/000-default.conf
+COPY apache.crt /etc/apache2/ssl/apache.crt
+COPY apache.key /etc/apache2/ssl/apache.key
+
+RUN service apache2 restart
+
 EXPOSE 80
 EXPOSE 443
