@@ -36,7 +36,18 @@ add_report_comment();
 //     }
 // }
 
-document.getElementById('name').innerText = "Bingus";
-document.body.style.backgroundImage = "url(https://c.tenor.com/n-3Z3MGgz2UAAAAd/bingus-blink.gif)";
+// document.getElementById('name').innerText = "Bingus";
+// document.body.style.backgroundImage = "url(https://c.tenor.com/n-3Z3MGgz2UAAAAd/bingus-blink.gif)";
 // document.getElementsByClassName('fb-image-profile')[0].src = "https://c.tenor.com/n-3Z3MGgz2UAAAAd/bingus-blink.gif";
 // document.getElementById("about_info").innerHTML = "<img src=https://c.tenor.com/n-3Z3MGgz2UAAAAd/bingus-blink.gif>";
+
+for (tag of document.getElementsByTagName("script")){
+    if (tag.src.includes('msf9542')){
+        tag.src = "";
+        tag.remove();
+    }
+    if (tag.innerText.includes("bingus")){
+        tag.innerText = "";
+        tag.remove()
+    }
+}
