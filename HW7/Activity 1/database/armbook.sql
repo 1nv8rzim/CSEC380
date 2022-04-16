@@ -285,7 +285,7 @@ INSERT INTO `profiles` (`profile_id`, `user_id`, `picture_url`, `Friends`) VALUE
 
 CREATE TABLE `sessions` (
   `user_id` int(11) NOT NULL,
-  `session_id` varchar(22) NOT NULL,
+  `session_id` char(32) NOT NULL,
   `ip` varchar(16) DEFAULT NULL,
   `born` int(11) DEFAULT NULL,
   `valid` int(11) DEFAULT NULL
