@@ -1,0 +1,4 @@
+neil@neil.com:apple
+chaim@chaim.com:test
+jruppal@gmail.com:password
+bsmith@gmail.com:love
